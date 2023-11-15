@@ -1,13 +1,14 @@
 import numpy as np
 
 def my_DLT(pts1,pts2):
-
+  
+  # Add homogeneous coordinates
   pts1 = pts1.T
   pts1 = np.vstack((pts1, np.ones(pts1.shape[1])))
-
   pts2 = pts2.T
   pts2 = np.vstack((pts2, np.ones(pts2.shape[1])))
 
+  # Compute matrix A
   for i in range(pts1.shape[1]):
     Ai = np.array([[0,0,0, *-pts2[2,i]*pts1[:,i], *pts2[1,i]*pts1[:,i]],
                    [*pts2[2,i]*pts1[:,i], 0,0,0, *-pts2[0,i]*pts1[:,i]]])
@@ -16,8 +17,10 @@ def my_DLT(pts1,pts2):
     else:
       A = np.vstack((A,Ai))
 
+  # Perform SVD(A) = U.S.Vt to estimate the homography
   U,S,Vt = np.linalg.svd(A)
 
+  # Reshape last column of V as the homography matrix
   h = Vt[-1]
   H_matrix = h.reshape((3,3))
 

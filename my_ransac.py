@@ -2,69 +2,65 @@ import numpy as np
 import my_dlt
 import math
 
-class Ransac():
+def ransac(pts1, pts2, sample_size, threshold):
     
-    def __init__(self,sample_size,max,threshold):
-        self.sample_size = sample_size      # Number of data points randomly sampled in each iteration of RANSAC
-        self.max = max                      # Maximum number of iterations
-        self.threshold = threshold          # Limit to consider a point as an inliner
-        
-    def ransac(self, pts1, pts2):
-        num_points = len(pts1)
-        max_inliers = 0
-        best_pts1_in = None
-        best_pts2_in = None
+    # warm up for loop
+    inliers = [0]    # len == 1, len(inliers)/len(pts1) < 0.88
+    iteractions = 0
+    num_points = len(pts1)
+    best_inliers_num = 0
+    best_pts1_in = None
+    best_pts2_in = None
 
-        # Turn on N, to loop over
-        i = np.random.choice(num_points, size=self.sample_size, replace=False)
-        sample_pts1 = pts1[i]
-        sample_pts2 = pts2[i]
+    # Turn on N, to loop over
+    i = np.random.choice(num_points, sample_size, replace=False)
+    sample_pts1 = pts1[i]
+    sample_pts2 = pts2[i]
+    H = my_dlt.my_homography(sample_pts1, sample_pts2)
+    inliers = find_inliers(pts1, pts2, H, threshold)
+
+    e = 0.001   #e = len(pts1) - len (inliers)
+    p = 0.999
+    s = sample_size
+
+    N = math.log(1 - p) / math.log(1 - (1 - e)**s)
+
+    while (iteractions < N) and ((len(inliers) / len(pts1) > 0.88)):
+        # select random samples
+        sample = np.random.choice(num_points, size=sample_size, replace=False)
+        sample_pts1 = pts1[sample]
+        sample_pts2 = pts2[sample]
+
+        # fit model to the samples
         H = my_dlt.my_homography(sample_pts1, sample_pts2)
-        inliers = self.find_inliers(pts1, pts2, H)
 
-        #e = len(pts1) - len (inliers)
-        e = 0.001
-        p = 0.999
-        s = self.sample_size
+        # find inliers
+        inliers = find_inliers(pts1, pts2, H, threshold)
 
-        print(f"e={e},s={s}")
-        N = math.log(1 - p) / math.log(1 - (1 - e)**s)
-        print(f"N={N}")
+        # update the best model if the current one is better
+        if np.sum(inliers) > best_inliers_num:
+            best_inliers_num = np.sum(inliers)
+            best_pts1_in = pts1[inliers]
+            best_pts2_in = pts2[inliers]
+            print(f"inliers={inliers},best_inliers_num{best_inliers_num},best_pts1_in={best_pts1_in}")
 
-        # warm up for loop
-        inliers = [0]    # len == 1, len(inliers)/len(pts1) < 0.88
-        iterations = 0
+        # e = len(best_pts1_in) - len (inliers)
+        # print(f"e={e},s={s}")
+        # N = math.log(1 - p) / math.log(1 - (1 - e)**s)
+        # print(f"N={N}") 
+        iteractions+=1
 
-        #while iterations < self.max:
-        #while (iterations < self.max) and (len(inliers)/len(pts1) < 0.88):
-        while (iterations < N) and (len(inliers)/len(pts1) < 0.88):
-            i = np.random.choice(num_points, size=self.sample_size, replace=False)
-            sample_pts1 = pts1[i]
-            sample_pts2 = pts2[i]
+    return best_pts1_in, best_pts2_in, iteractions
 
-            H = my_dlt.my_homography(sample_pts1, sample_pts2)
+def find_inliers(pts1, pts2, H, threshold):
 
-            inliers = self.find_inliers(pts1, pts2, H)
+    pts1_homogeneous = np.column_stack((pts1, np.ones(len(pts1))))
+    pts2_transformed = np.dot(H, pts1_homogeneous.T).T
+    pts2_transformed /= pts2_transformed[:, 2][:, np.newaxis]
+    pts2_transformed = pts2_transformed[:, :2]
 
-            if np.sum(inliers) > max_inliers:
-                max_inliers = np.sum(inliers)
-                best_pts1_in = pts1[inliers]
-                best_pts2_in = pts2[inliers]
+    distances = np.linalg.norm(pts2 - pts2_transformed, axis=1)
 
-            iterations+=1
-
-        H_final = my_dlt.my_homography(best_pts1_in, best_pts2_in)
-
-        return H_final, best_pts1_in, best_pts2_in
-
-    def find_inliers(self,pts1, pts2, H):
-
-        pts1_homogeneous = np.column_stack((pts1, np.ones(len(pts1))))
-        pts2_transformed = np.dot(H, pts1_homogeneous.T).T
-        pts2_transformed /= pts2_transformed[:, 2][:, np.newaxis]
-        pts2_transformed = pts2_transformed[:, :2]
-
-        distances = np.linalg.norm(pts2 - pts2_transformed, axis=1)
-
-        inliers = distances < self.threshold
-        return inliers
+    inliers = distances < threshold
+    
+    return inliers
