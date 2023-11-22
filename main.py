@@ -5,9 +5,9 @@ import my_ransac
 import my_dlt
 
 MIN_MATCH_COUNT = 10
-img1 = cv.imread('imgs\edu_vingadores.png',0)          # queryImage
-img2 = cv.imread('imgs\edu.png',0)                     # trainImage
-img6 = cv.imread('imgs\cat_placeholder.jpeg')          # subplot placeholder
+img1 = cv.imread('imgs\comicsStarWars01.jpg',0)          # queryImage
+img2 = cv.imread('imgs\comicsStarWars02.jpg',0)          # trainImage
+img6 = cv.imread('imgs\cat_placeholder.jpeg')            # subplot placeholder
 
 # Initiate SIFT detector
 sift = cv.SIFT_create()
